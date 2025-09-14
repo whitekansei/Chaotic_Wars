@@ -1,13 +1,15 @@
-// server.js
 const WebSocket = require("ws");
-const wss = new WebSocket.Server({ port: 8080 });
 
-const players = new Map(); // ws -> nickname
+const port = process.env.PORT || 8080;
+const wss = new WebSocket.Server({ port });
 
-function broadcast(msg) {
+// WebSocket → nickname
+const players = new Map();
+
+function broadcast(message) {
   for (const client of wss.clients) {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(msg);
+      client.send(message);
     }
   }
 }
@@ -15,53 +17,41 @@ function broadcast(msg) {
 wss.on("connection", (ws) => {
   console.log("Client connected");
 
-  ws.on("message", (raw) => {
-    const msg = raw.toString();
-    const [cmd, payload] = msg.split("|");
-    console.log("Recv:", msg);
+  ws.on("message", (msg) => {
+    const message = msg.toString();
+    console.log("Received:", message);
+
+    const [cmd, payload] = message.split("|");
 
     if (cmd === "JOIN") {
       const nickname = payload || "Player" + Math.floor(Math.random() * 10000);
-      if ([...players.values()].includes(nickname)) {
-    // 既存プレイヤーを検索
-    for (let [key, value] of players) {
-        if (value === nickname) {
-            // 既存の WebSocket を切断して置き換える場合
-            key.close();
-            players.delete(key);
-            break;
+
+      // 既存の同名プレイヤーを切断
+      for (const [client, name] of players) {
+        if (name === nickname) {
+          client.close();
+          players.delete(client);
+          break;
         }
-    }
-}
+      }
+
       players.set(ws, nickname);
 
-      // 新規参加者へ現在の全プレイヤーリストを送る
-       const allNames = Array.from(players.values()).join(",");
-    ws.send(`PLAYERS|${allNames}`);  // ← 新規プレイヤーのみに送信
+      // 新規参加者に現在の全プレイヤーリストを送信
+      const allNames = Array.from(players.values()).join(",");
+      ws.send(`PLAYERS|${allNames}`);
 
-    // 既存プレイヤーには新しい参加者のJOINを通知
-    for (const client of wss.clients) {
+      // 他の参加者に新規JOINを通知
+      for (const client of wss.clients) {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(`JOIN|${nickname}`);
+          client.send(`JOIN|${nickname}`);
         }
-    }
-
-
-      // 全員に新しい参加者を通知
-      //broadcast(`JOIN|${nickname}`);
+      }
 
     } else if (cmd === "LEAVE") {
       const nickname = players.get(ws);
       players.delete(ws);
-      broadcast(`LEAVE|${nickname}`);
-
-    } else if (cmd === "REQUEST_PLAYERS") {
-      const allNames = Array.from(players.values()).join(",");
-      ws.send(`PLAYERS|${allNames}`);
-
-    } else {
-      // それ以外のメッセージは全員にそのまま転送
-      broadcast(msg);
+      broadcast("PLAYERS|" + Array.from(players.values()).join(","));
     }
   });
 
@@ -69,10 +59,9 @@ wss.on("connection", (ws) => {
     const nickname = players.get(ws);
     if (nickname) {
       players.delete(ws);
-      broadcast(`LEAVE|${nickname}`);
+      broadcast("PLAYERS|" + Array.from(players.values()).join(","));
     }
-    console.log("Client disconnected");
   });
 });
 
-console.log("WebSocket server running on ws://localhost:8080");
+console.log(`WebSocket server running on ws://localhost:${port}`);
