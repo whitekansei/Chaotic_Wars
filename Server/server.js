@@ -37,11 +37,11 @@ wss.on("connection", (ws) => {
 
       // 新規参加者へ現在の全プレイヤーリストを送る
       const allNames = Array.from(players.values()).join(",");
-      ws.send(`PLAYERS|${allNames}`);
+      //ws.send(`PLAYERS|${allNames}`);
       broadcast(`PLAYERS|${allNames}`);
 
       // 全員に新しい参加者を通知
-      broadcast(`JOIN|${nickname}`);
+      //broadcast(`JOIN|${nickname}`);
 
     } else if (cmd === "LEAVE") {
       const nickname = players.get(ws);
