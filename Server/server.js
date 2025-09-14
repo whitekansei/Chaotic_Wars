@@ -22,10 +22,22 @@ wss.on("connection", (ws) => {
 
     if (cmd === "JOIN") {
       const nickname = payload || "Player" + Math.floor(Math.random() * 10000);
+      if ([...players.values()].includes(nickname)) {
+    // 既存プレイヤーを検索
+    for (let [key, value] of players) {
+        if (value === nickname) {
+            // 既存の WebSocket を切断して置き換える場合
+            key.close();
+            players.delete(key);
+            break;
+        }
+    }
+}
       players.set(ws, nickname);
 
       // 新規参加者へ現在の全プレイヤーリストを送る
       const allNames = Array.from(players.values()).join(",");
+      ws.send(`PLAYERS|${allNames}`);
       broadcast(`PLAYERS|${allNames}`);
 
       // 全員に新しい参加者を通知
