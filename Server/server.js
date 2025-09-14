@@ -36,9 +36,16 @@ wss.on("connection", (ws) => {
       players.set(ws, nickname);
 
       // 新規参加者へ現在の全プレイヤーリストを送る
-      const allNames = Array.from(players.values()).join(",");
-      ws.send(`PLAYERS|${allNames}`);
-      broadcast(`PLAYERS|${allNames}`);
+       const allNames = Array.from(players.values()).join(",");
+    ws.send(`PLAYERS|${allNames}`);  // ← 新規プレイヤーのみに送信
+
+    // 既存プレイヤーには新しい参加者のJOINを通知
+    for (const client of wss.clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(`JOIN|${nickname}`);
+        }
+    }
+
 
       // 全員に新しい参加者を通知
       //broadcast(`JOIN|${nickname}`);
