@@ -24,31 +24,23 @@ wss.on("connection", (ws) => {
     const [cmd, payload] = message.split("|");
 
     if (cmd === "JOIN") {
-      const nickname = payload || "Player" + Math.floor(Math.random() * 10000);
+  const nickname = payload || "Player" + Math.floor(Math.random() * 10000);
 
-      // 既存の同名プレイヤーを切断
-      for (const [client, name] of players) {
-        if (name === nickname) {
-          client.close();
-          players.delete(client);
-          break;
-        }
-      }
+  // 既存の同名プレイヤーを切断
+  for (const [client, name] of players) {
+    if (name === nickname) {
+      client.close();
+      players.delete(client);
+      break;
+    }
+  }
 
-      players.set(ws, nickname);
+  players.set(ws, nickname);
 
-      // 新規参加者に現在の全プレイヤーリストを送信
-      const allNames = Array.from(players.values()).join(",");
-      ws.send(`PLAYERS|${allNames}`);
-
-      // 他の参加者に新規JOINを通知
-      for (const client of wss.clients) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          client.send(`JOIN|${nickname}`);
-        }
-      }
-
-    } else if (cmd === "LEAVE") {
+  // 全員に現在のプレイヤーリストを送信（ここがポイント！）
+  broadcast("PLAYERS|" + Array.from(players.values()).join(","));
+}
+ else if (cmd === "LEAVE") {
       const nickname = players.get(ws);
       players.delete(ws);
       broadcast("PLAYERS|" + Array.from(players.values()).join(","));
